@@ -1,7 +1,7 @@
 <?php
 
 //$pages = Array(
-//	'name' => "Matrix Tools",
+//	'name' => "machine",
 //	'type' => "status",
 //	'page' => "plugin_setup.php");
 //
