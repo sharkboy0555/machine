@@ -50,58 +50,64 @@
   <button id="previewBtn">Apply &amp; Preview</button>
 
   <script>
-  $(function() {
-    // === FIXED: Load models from static JSON file ===
-    var modelsCfg = [];
-    function loadModels() {
-      $.getJSON('/rest/overlay/models')
-        .done(function(list) {
+// right at the top of your <script> block, before anything else
+var modelsCfg = [];
+
+function loadModels() {
+  // Try the FPP REST endpoint first
+  $.getJSON('/rest/overlay/models')
+    .done(function(list) {
+      var sel = $('#modelSel').empty();
+      if (!list.length) {
+        sel.append( $('<option disabled>').text('No models defined') );
+      } else {
+        list.forEach(function(name) {
+          sel.append( $('<option>').val(name).text(name) );
+        });
+      }
+      sel.trigger('change');
+    })
+    .fail(function() {
+      // Fallback to the file you verified over SSH
+      $.getJSON('/media/config/model-overlays.json')
+        .done(function(data) {
+          modelsCfg = data.models;
           var sel = $('#modelSel').empty();
-          if (!list.length) {
-            sel.append($('<option disabled>').text('No models defined'));
+          if (!data.models.length) {
+            sel.append( $('<option disabled>').text('No models defined') );
           } else {
-            list.forEach(function(name) {
-              sel.append($('<option>').val(name).text(name));
+            data.models.forEach(function(m) {
+              sel.append( $('<option>').val(m.Name).text(m.Name) );
             });
           }
           sel.trigger('change');
         })
-        .catch(function() {
-          $.getJSON('/media/config/model-overlays.json')
-            .done(function(data) {
-              modelsCfg = data.models;
-              var sel = $('#modelSel').empty();
-              if (!data.models.length) {
-                sel.append($('<option disabled>').text('No models defined'));
-              } else {
-                data.models.forEach(function(m) {
-                  sel.append($('<option>').val(m.Name).text(m.Name));
-                });
-              }
-              sel.trigger('change');
-            })
-            .fail(function() {
-              $('#modelSel').empty().append(
-                $('<option disabled>').text('Error loading models')
-              );
-            });
+        .fail(function() {
+          $('#modelSel').empty()
+            .append( $('<option disabled>').text('Error loading models') );
         });
-    }
-
-    function updateModelInfo(name) {
-      var m = modelsCfg.find(function(x) { return x.Name === name; });
-      if (!m) return;
-      var width = m.StringCount * m.StrandsPerString;
-      var pixels = m.ChannelCount / m.ChannelCountPerNode;
-      var height = pixels / width;
-      $('#modelWidth').text(width + ' px');
-      $('#modelHeight').text(height + ' px');
-      $('#previewCanvas').attr({ width: width, height: height });
-    }
-
-    $('#modelSel').on('change', function() {
-      updateModelInfo($(this).val());
     });
+}
+
+   function updateModelInfo(name) {
+  var m = modelsCfg.find(function(x) { return x.Name === name; });
+  if (!m) return;
+  // compute width/height from your JSON fields
+  var width   = m.StringCount * m.StrandsPerString;
+  var pixels  = m.ChannelCount / m.ChannelCountPerNode;
+  var height  = pixels / width;
+  $('#modelWidth').text(width + ' px');
+  $('#modelHeight').text(height + ' px');
+  $('#previewCanvas').attr({ width: width, height: height });
+}
+// after you’ve defined those functions, in your $(function(){…}) init:
+$('#modelSel').on('change', function() {
+  updateModelInfo( $(this).val() );
+});
+
+// and finally call:
+loadModels();
+
 
     // === Activate / Deactivate ===
     $('#activateBtn').on('click', function() {
