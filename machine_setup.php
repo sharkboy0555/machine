@@ -58,15 +58,14 @@ $staticModels = $modelFile
 
   <script>
   $(function(){
-    // Fallback static models, injected server-side
+    // static fallback models from PHP
     var staticModels = <?php echo json_encode($staticModels, JSON_HEX_TAG); ?>;
-    // Will hold whichever source we use (API or static)
     var modelsCfg = [];
 
-    // Populate the <select> given an array of Names
-    function populateDropdown(names){
+    // populate <select> from array of names
+    function populateDropdown(names) {
       var sel = $('#modelSel').empty();
-      if(!names.length){
+      if (!names.length) {
         sel.append($('<option disabled>').text('No models defined'));
       } else {
         names.forEach(function(n){
@@ -76,49 +75,53 @@ $staticModels = $modelFile
       sel.trigger('change');
     }
 
-    // Load from FPP ≥3.0 API first, fallback to static JSON
-    function loadModels(){
+    // try API then static
+    function loadModels() {
       $.getJSON('/api/models')
         .done(function(apiArray){
-          // apiArray is an array of objects with .Name, etc.
           modelsCfg = apiArray;
-          populateDropdown(apiArray.map(function(m){ return m.Name; }));
+          populateDropdown(apiArray.map(m=>m.Name));
         })
         .fail(function(){
-          // fallback to your static file
           modelsCfg = staticModels;
-          populateDropdown(staticModels.map(function(m){ return m.Name; }));
+          populateDropdown(staticModels.map(m=>m.Name));
         });
     }
 
-    // Update width/height and canvas size when model changes
-    function updateModelInfo(name){
-      var m = modelsCfg.find(function(x){ return x.Name === name; });
-      if(!m) return;
-      var width   = m.StringCount * m.StrandsPerString;
-      var pixels  = m.ChannelCount / m.ChannelCountPerNode;
-      var height  = pixels / width;
+    // on model change: compute dims & resize canvas
+    function updateModelInfo(name) {
+      var m = modelsCfg.find(x=>x.Name===name);
+      if (!m) return;
+      var width  = m.StringCount * m.StrandsPerString;
+      var pixels = m.ChannelCount / m.ChannelCountPerNode;
+      var height = pixels / width;
       $('#modelWidth').text(width + ' px');
       $('#modelHeight').text(height + ' px');
       $('#previewCanvas').attr({ width: width, height: height });
     }
 
-    // Activate / Deactivate overlay model
+    // hook up activate/deactivate
     $('#activateBtn').click(function(){
       var name = $('#modelSel').val();
-      if(!name) return;
-      $.post('/api/models/' + encodeURIComponent(name) + '/activate');
+      if (name) {
+        $.post('/api/models/' + encodeURIComponent(name) + '/activate');
+      }
     });
     $('#deactivateBtn').click(function(){
       $.post('/api/models/deactivate');
     });
 
-    // Manual preview: draw text on canvas and invoke overlay()
+    // **NEW**: preview draws black background + white text, then activates the model
     $('#previewBtn').click(function(){
       var name   = $('#modelSel').val() || '';
       var canvas = document.getElementById('previewCanvas');
       var ctx    = canvas.getContext('2d');
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      // black background
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // draw your four lines in chosen color
       ctx.fillStyle = $('#color').val() || '#FFFFFF';
       ctx.font      = '12px sans-serif';
       var y = 14;
@@ -126,20 +129,31 @@ $staticModels = $modelFile
         ctx.fillText($('#'+id).val()||'', 0, y);
         y += 14;
       });
-      // build and fire your overlay hook URL
-      var params = { preview:1, model:name, color:$('#color').val()||'#FFFFFF' };
+
+      // compose overlay hook URL with all params
+      var params = {
+        preview: 1,
+        model:   name,
+        color:   $('#color').val() || '#FFFFFF'
+      };
       ['line1','line2','line3','line4'].forEach(function(id){
         params[id] = $('#'+id).val()||'';
       });
-      $.get('/plugin/machine/overlay?' + $.param(params));
+
+      // fire the overlay hook, then activate that model
+      $.get('/plugin/machine/overlay?' + $.param(params))
+       .always(function(){
+         if (name) {
+           $.post('/api/models/' + encodeURIComponent(name) + '/activate');
+         }
+       });
     });
 
-    // Wire up change event
+    // wire change + initial load
     $('#modelSel').change(function(){
       updateModelInfo($(this).val());
     });
 
-    // Initial load
     loadModels();
   });
   </script>
