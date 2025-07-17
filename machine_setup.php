@@ -9,35 +9,32 @@
   <script src="/js/jquery.min.js"></script>
   <style>
     body { font-family: sans-serif; padding: 15px; }
-    h1, h2 { margin-top: 20px; }
+    h1 { margin-bottom: 20px; }
     .field { margin-bottom: 12px; }
-    label { display: inline-block; width: 120px; vertical-align: top; }
+    label { display: inline-block; width: 120px; }
     select, input { width: 180px; }
     button { padding: 6px 10px; margin-right: 8px; }
-    #previewCanvas { border: 1px solid #888; margin-top: 12px; display: block; }
   </style>
 </head>
 <body>
   <h1>Machine Status Configuration</h1>
 
-  <h2>Overlay Model</h2>
   <div class="field">
-    <label for="modelSel">Model:</label>
-    <select id="modelSel"><option>Loading...</option></select>
+    <label for="modelSel">Overlay Model:</label>
+    <select id="modelSel"></select>
   </div>
   <div class="field">
-    <label>Width:</label><span id="modelWidth">–</span>
+    <label for="modelWidth">Width:</label>
+    <span id="modelWidth">–</span>
   </div>
   <div class="field">
-    <label>Height:</label><span id="modelHeight">–</span>
+    <label for="modelHeight">Height:</label>
+    <span id="modelHeight">–</span>
   </div>
   <div class="field">
     <button id="activateBtn">Activate</button>
     <button id="deactivateBtn">Deactivate</button>
   </div>
-
-  <h2>Overlay Preview</h2>
-  <canvas id="previewCanvas"></canvas>
 
   <h2>Manual Data Preview</h2>
   <div class="field"><label for="line1">Line 1:</label><input id="line1" type="text"></div>
@@ -45,80 +42,85 @@
   <div class="field"><label for="line3">Line 3:</label><input id="line3" type="text"></div>
   <div class="field"><label for="line4">Line 4:</label><input id="line4" type="text"></div>
   <div class="field"><label for="color">Color:</label><input id="color" type="color" value="#FFFFFF"></div>
-  <button id="saveBtn">Apply &amp; Preview</button>
+  <button id="previewBtn">Apply &amp; Preview</button>
 
   <script>
-    $(function() {
-      // Load models
-      $.getJSON('/rest/overlay/models')
-        .done(function(models) {
-          var sel = $('#modelSel').empty();
-          if (!models.length) {
-            sel.append($('<option disabled>').text('No models defined'));
-          } else {
-            $.each(models, function(i, m) {
-              sel.append($('<option>').val(m).text(m));
-            });
-          }
-          sel.trigger('change');
-        })
-        .fail(function() {
-          $('#modelSel').empty().append(
-            $('<option disabled>').text('Error loading models')
-          );
+  $(function() {
+    // Load available overlay models
+    $.getJSON('/rest/overlay/models', function(models) {
+      var sel = $('#modelSel').empty();
+      if (!models || models.length === 0) {
+        sel.append($('<option disabled>').text('No models defined'));
+      } else {
+        $.each(models, function(i, m) {
+          sel.append($('<option>').val(m).text(m));
         });
-
-      // Load settings
-      $.getJSON('/plugin/machine/settings', function(data) {
-        ['line1','line2','line3','line4'].forEach(function(id) {
-          $('#' + id).val(data[id] || '');
-        });
-        $('#color').val(data.color || '#FFFFFF');
-      });
+      }
+      sel.trigger('change');
+    })
+    .fail(function() {
+      $('#modelSel').empty().append($('<option disabled>').text('Error loading models'));
     });
 
-    // On model change
+    // When a model is selected, fetch metadata and resize preview canvas
     $('#modelSel').on('change', function() {
       var model = $(this).val();
       if (!model) return;
-      $.getJSON('/rest/overlay/models/' + encodeURIComponent(model))
-        .done(function(info) {
-          $('#modelWidth').text(info.pixelCountX + ' px');
-          $('#modelHeight').text(info.pixelCountY + ' px');
-          $('#previewCanvas').attr({
-            width: info.pixelCountX,
-            height: info.pixelCountY
-          });
-        });
+      $.getJSON('/rest/overlay/models/' + encodeURIComponent(model), function(info) {
+        $('#modelWidth').text(info.pixelCountX + ' px');
+        $('#modelHeight').text(info.pixelCountY + ' px');
+        $('#previewCanvas').remove();
+        $('<canvas>', {
+          id: 'previewCanvas',
+          width: info.pixelCountX,
+          height: info.pixelCountY,
+          css: { border: '1px solid #888', display: 'block', marginTop: '12px' }
+        }).insertAfter($('#modelHeight').closest('.field'));
+      });
     });
 
-    // Activate/deactivate
+    // Activate overlay model
     $('#activateBtn').on('click', function() {
       var model = $('#modelSel').val();
       if (model) {
         $.post('/rest/overlay/models/' + encodeURIComponent(model) + '/activate');
       }
     });
+    // Deactivate overlay model
     $('#deactivateBtn').on('click', function() {
       $.post('/rest/overlay/models/deactivate');
     });
 
-    // Preview manual settings
-    $('#saveBtn').on('click', function() {
-      var payload = {};
+    // Load and populate manual settings
+    $.getJSON('/plugin/machine/settings', function(data) {
+      $('#modelSel').val(data.model);
       ['line1','line2','line3','line4'].forEach(function(id) {
-        payload[id] = $('#' + id).val();
+        $('#' + id).val(data[id] || '');
       });
-      payload.color = $('#color').val();
+      $('#color').val(data.color || '#FFFFFF');
+    });
+
+    // Save settings and trigger overlay preview
+    $('#previewBtn').on('click', function() {
+      var payload = {
+        model: $('#modelSel').val(),
+        line1: $('#line1').val(),
+        line2: $('#line2').val(),
+        line3: $('#line3').val(),
+        line4: $('#line4').val(),
+        color: $('#color').val()
+      };
       $.ajax({
         url: '/plugin/machine/settings',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(payload)
       }).always(function() {
-        $.get('/plugin/machine/overlay?preview=1');
+        var m = encodeURIComponent(payload.model);
+        $.get('/plugin/machine/overlay?preview=1&model=' + m);
       });
     });
+  });
   </script>
 </body>
 </html>
