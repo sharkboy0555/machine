@@ -23,7 +23,7 @@
   <h2>Overlay Model</h2>
   <div class="field">
     <label for="modelSel">Model:</label>
-    <select id="modelSel"></select>
+    <select id="modelSel"><option>Loading...</option></select>
   </div>
   <div class="field">
     <label for="modelWidth">Width:</label><span id="modelWidth">–</span>
@@ -48,58 +48,89 @@
   <button id="saveBtn">Apply &amp; Preview</button>
 
   <script>
-    // On page load, fetch available overlay models
-    $(function() {
-      $.getJSON('/rest/overlay/models', function(models) {
-        var sel = $('#modelSel').empty();
-        if (!models.length) {
-          sel.append($('<option disabled>').text('No models defined'));
-        } else {
-          $.each(models, function(i, m) {
-            sel.append($('<option>').val(m).text(m));
-          });
-          sel.trigger('change');
-        }
-      }).fail(function() {
-        $('#modelSel').empty().append($('<option disabled>').text('Error loading models'));
-      });
+    // Try REST endpoint or fallback to static JSON
+    function loadModels() {
+      $.getJSON('/api/overlays/models')
+        .done(function(models) {
+          populateModels(models.map(function(m){ return m.Name || m; }));
+        })
+        .fail(function() {
+          // Fallback: read config file directly
+          $.getJSON('/media/config/model-overlays.json')
+            .done(function(cfg) {
+              var names = cfg.models.map(function(m){ return m.Name; });
+              populateModels(names);
+            })
+            .fail(function() {
+              $('#modelSel').empty().append($('<option disabled>').text('Error loading models'));
+            });
+        });
+    }
 
-      // Load saved manual settings
+    function populateModels(names) {
+      var sel = $('#modelSel').empty();
+      if (!names.length) {
+        sel.append($('<option disabled>').text('No models defined'));
+      } else {
+        names.forEach(function(name) {
+          sel.append($('<option>').val(name).text(name));
+        });
+        sel.trigger('change');
+      }
+    }
+
+    // Show model metadata and resize canvas
+    $('#modelSel').on('change', function() {
+      var model = $(this).val();
+      if (!model) return;
+      // Try REST metadata endpoint
+      $.getJSON('/api/overlays/models/' + encodeURIComponent(model))
+        .done(function(info) {
+          $('#modelWidth').text(info.pixelCountX + ' px');
+          $('#modelHeight').text(info.pixelCountY + ' px');
+          $('#previewCanvas')
+            .attr('width', info.pixelCountX)
+            .attr('height', info.pixelCountY);
+        })
+        .fail(function() {
+          // Fallback: static config
+          $.getJSON('/media/config/model-overlays.json')
+            .done(function(cfg) {
+              var m = cfg.models.find(function(x){ return x.Name === model; });
+              if (m) {
+                $('#modelWidth').text(m.pixelCountX + ' px');
+                $('#modelHeight').text(m.pixelCountY + ' px');
+                $('#previewCanvas')
+                  .attr('width', m.pixelCountX)
+                  .attr('height', m.pixelCountY);
+              }
+            });
+        });
+    });
+
+    // Activate/deactivate overlay model
+    $('#activateBtn').on('click', function() {
+      var model = $('#modelSel').val();
+      if (model) {
+        $.post('/api/overlays/models/' + encodeURIComponent(model) + '/activate');
+      }
+    });
+    $('#deactivateBtn').on('click', function() {
+      $.post('/api/overlays/models/deactivate');
+    });
+
+    // Load saved manual settings
+    function loadSettings() {
       $.getJSON('/plugin/machine/settings', function(data) {
-        $.each(['line1','line2','line3','line4'], function(i, id) {
+        ['line1','line2','line3','line4'].forEach(function(id) {
           $('#' + id).val(data[id] || '');
         });
         $('#color').val(data.color || '#FFFFFF');
       });
-    });
-
-    // When user selects a model, fetch its metadata
-    $('#modelSel').on('change', function() {
-      var model = $(this).val();
-      if (!model) return;
-      $.getJSON('/rest/overlay/models/' + model, function(info) {
-        $('#modelWidth').text(info.pixelCountX + ' px');
-        $('#modelHeight').text(info.pixelCountY + ' px');
-        $('#previewCanvas')
-          .attr('width', info.pixelCountX)
-          .attr('height', info.pixelCountY);
-      });
-    });
-
-    // Activate and deactivate overlay model
-    $('#activateBtn').on('click', function() {
-      var model = $('#modelSel').val();
-      if (model) {
-        $.post('/rest/overlay/models/' + model + '/activate');
-      }
-    });
-
-    $('#deactivateBtn').on('click', function() {
-      $.post('/rest/overlay/models/deactivate');
-    });
+    }
 
     // Draw manual data onto canvas and send preview overlay
-    $('#saveBtn').on('click', function() {
+    function saveAndPreview() {
       var canvas = document.getElementById('previewCanvas');
       var ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -118,6 +149,13 @@
         contentType: 'application/json',
         data: JSON.stringify({ model: model, data: dataURL })
       });
+    }
+
+    // Initialize page
+    $(function() {
+      loadModels();
+      loadSettings();
+      $('#saveBtn').on('click', saveAndPreview);
     });
   </script>
 </body>
