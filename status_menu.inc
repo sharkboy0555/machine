@@ -1,10 +1,4 @@
 <?php
-$menuEntries = [
-    [
-        'text'   => 'Machine Config',
-        'type'   => 'status',
-        'page'   => 'machine_setup.php',
-        'wrap'   => 1,
-        'plugin' => 'machine'
-    ],
-];
+// status_menu.inc
+?>
+<li><a href="<?php echo preg_replace('/.*\/plugins\/(.*)/', 'plugin.php?plugin=$1&page=machine_setup.php', dirname(__FILE__)); ?>">Machine Config</a></li>
