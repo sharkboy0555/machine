@@ -1,7 +1,6 @@
 <?php
 // Plugin entrypoint for the 'machine' overlay
-// FPPPlugin base class is provided by FPP core, no additional includes required.
-// NOTE: No closing '?>' tag is needed at the end of this file (per PHP best practices).
+// FPPPlugin base class is provided by FPP core
 
 class MachinePlugin extends FPPPlugin {
     public function __construct() {
@@ -9,7 +8,6 @@ class MachinePlugin extends FPPPlugin {
         $this->name = 'machine';
         $this->addHook('settings');
         $this->addHook('overlay');
-        $this->addMenuEntry('Machine Config', 'status', 'www/machine.html', 1);
     }
 
     public function overlay($args) {
