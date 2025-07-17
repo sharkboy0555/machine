@@ -1,12 +1,16 @@
-fpp-matrixtools
-===============
+Machine Plugin
+==============
 
-FPP Plugin for real-time manipulation of a matrix using the memory mapped
-channel block interface.
+Live machine-status scoreboard overlay for Falcon Player (FPP), configurable via web UI.
 
-Useful Links:
+Installation
+------------
+1. Go to Plugin Manager → Install from Git.
+2. Enter: https://github.com/sharkboy0555/machine.git
+3. Enable the "machine" plugin and restart FPP.
 
-- `Falcon Christmas forums <http://falconchristmas.com>`_
-- `Falcon Pi Player sub-forum <http://falconchristmas.com/forum/index.php/board,8.0.html>`_
-- `Wiki <http://falconchristmas.com/wiki/index.php/Main_Page>`_
-
+Configuration & Preview
+-----------------------
+1. In FPP's menu, select **Machine Config**.
+2. Enter your four lines of data and pick a color.
+3. Click **Apply & Preview** to immediately see the overlay on your matrix.
