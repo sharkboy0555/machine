@@ -119,45 +119,85 @@ $staticModels = $modelFile
       $.post('/api/models/deactivate');
     });
 
-    // Apply & Preview: draw on canvas, POST to overlay hook, then activate
-    $('#previewBtn').click(function(){
-      var name = $('#modelSel').val() || '';
-      var canvas = document.getElementById('previewCanvas');
-      var ctx = canvas.getContext('2d');
+   // Apply & Preview: draw on canvas, POST to overlay hook, then activate
+-  $('#previewBtn').click(function(){
+-    var name = $('#modelSel').val() || '';
+-    var canvas = document.getElementById('previewCanvas');
+-    var ctx = canvas.getContext('2d');
+-
+-    // black background
+-    ctx.fillStyle = '#000';
+-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+-
+-    // draw text lines
+-    ctx.fillStyle = $('#color').val() || '#FFFFFF';
+-    ctx.font = '12px sans-serif';
+-    var y = 14;
+-    ['line1','line2','line3','line4'].forEach(function(id){
+-      ctx.fillText($('#' + id).val() || '', 0, y);
+-      y += 14;
+-    });
+-
+-    // build params
+-    var params = { preview:1, model:name, color:$('#color').val() || '#FFFFFF' };
+-    ['line1','line2','line3','line4'].forEach(function(id){
+-      params[id] = $('#' + id).val() || '';
+-    });
+-
+-    // POST to overlay hook, then activate
+-    $.ajax({
+-      url: '/plugin/machine/overlay',
+-      type: 'POST',
+-      contentType: 'application/json',
+-      data: JSON.stringify(params)
+-    }).done(function(){
+-      if (name) {
+-        $.post('/api/models/' + encodeURIComponent(name) + '/activate');
+-      }
+-    }).fail(function(err){
+-      console.error('Overlay POST failed:', err);
+-    });
+-  });
++  $('#previewBtn').click(function(){
++    var name   = $('#modelSel').val() || '';
++    var canvas = document.getElementById('previewCanvas');
++    var ctx    = canvas.getContext('2d');
++
++    // draw black background + text
++    ctx.fillStyle = '#000';
++    ctx.fillRect(0, 0, canvas.width, canvas.height);
++    ctx.fillStyle = $('#color').val() || '#FFFFFF';
++    ctx.font      = '12px sans-serif';
++    var y = 14;
++    ['line1','line2','line3','line4'].forEach(function(id){
++      ctx.fillText($('#'+id).val()||'', 0, y);
++      y += 14;
++    });
++
++    // prepare URL-encoded form data
++    var params = {
++      preview: 1,
++      model:   name,
++      color:   $('#color').val() || '#FFFFFF',
++      line1:   $('#line1').val() || '',
++      line2:   $('#line2').val() || '',
++      line3:   $('#line3').val() || '',
++      line4:   $('#line4').val() || ''
++    };
++
++    // POST as form data
++    $.post('/plugin/machine/overlay', params)
++      .done(function(){
++        // now activate that overlay model on the LED
++        if (name) {
++          $.post('/api/models/' + encodeURIComponent(name) + '/activate');
++        }
++      })
++      .fail(function(err){
++        console.error('Overlay POST failed:', err);
++      });
++  });
 
-      // black background
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // draw text lines
-      ctx.fillStyle = $('#color').val() || '#FFFFFF';
-      ctx.font = '12px sans-serif';
-      var y = 14;
-      ['line1','line2','line3','line4'].forEach(function(id){
-        ctx.fillText($('#' + id).val() || '', 0, y);
-        y += 14;
-      });
-
-      // build params
-      var params = { preview:1, model:name, color:$('#color').val() || '#FFFFFF' };
-      ['line1','line2','line3','line4'].forEach(function(id){
-        params[id] = $('#' + id).val() || '';
-      });
-
-      // POST to overlay hook, then activate
-      $.ajax({
-        url: '/plugin/machine/overlay',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(params)
-      }).done(function(){
-        if (name) {
-          $.post('/api/models/' + encodeURIComponent(name) + '/activate');
-        }
-      }).fail(function(err){
-        console.error('Overlay POST failed:', err);
-      });
-    });
 
     // On change, update the model info
     $('#modelSel').change(function(){
