@@ -16,6 +16,12 @@
   <select id="modelSel"></select>
 </div>
 <div class="field">
+  <label>Width:</label> <span id="modelWidth"></span>
+  <label>Height:</label> <span id="modelHeight"></span>
+</div>
+<canvas id="previewCanvas" style="display:none;"></canvas>
+
+<div class="field">
   <button id="activateBtn">Activate</button>
   <button id="deactivateBtn">Deactivate</button>
 </div>
