@@ -51,43 +51,39 @@
 
   <script>
 // right at the top of your <script> block, before anything else
+// at the top of your <script> block
 var modelsCfg = [];
 
 function loadModels() {
-  // Try the FPP REST endpoint first
-  $.getJSON('/rest/overlay/models')
-    .done(function(list) {
+  $.getJSON('/media/config/model-overlays.json')
+    .done(function(data) {
+      // stash the full model objects
+      modelsCfg = data.models;
+
+      // populate the dropdown
       var sel = $('#modelSel').empty();
-      if (!list.length) {
-        sel.append( $('<option disabled>').text('No models defined') );
+      if (!data.models.length) {
+        sel.append($('<option disabled>').text('No models defined'));
       } else {
-        list.forEach(function(name) {
-          sel.append( $('<option>').val(name).text(name) );
+        data.models.forEach(function(m) {
+          sel.append(
+            $('<option>')
+              .val(m.Name)
+              .text(m.Name)
+          );
         });
       }
+
+      // trigger change so width/height + canvas resize happen
       sel.trigger('change');
     })
     .fail(function() {
-      // Fallback to the file you verified over SSH
-      $.getJSON('/media/config/model-overlays.json')
-        .done(function(data) {
-          modelsCfg = data.models;
-          var sel = $('#modelSel').empty();
-          if (!data.models.length) {
-            sel.append( $('<option disabled>').text('No models defined') );
-          } else {
-            data.models.forEach(function(m) {
-              sel.append( $('<option>').val(m.Name).text(m.Name) );
-            });
-          }
-          sel.trigger('change');
-        })
-        .fail(function() {
-          $('#modelSel').empty()
-            .append( $('<option disabled>').text('Error loading models') );
-        });
+      $('#modelSel')
+        .empty()
+        .append($('<option disabled>').text('Error loading models'));
     });
 }
+
 
    function updateModelInfo(name) {
   var m = modelsCfg.find(function(x) { return x.Name === name; });
@@ -102,8 +98,20 @@ function loadModels() {
 }
 // after you’ve defined those functions, in your $(function(){…}) init:
 $('#modelSel').on('change', function() {
-  updateModelInfo( $(this).val() );
+  var name = $(this).val();
+  var m    = modelsCfg.find(x => x.Name === name);
+  if (!m) return;
+
+  // compute width/height
+  var width  = m.StringCount * m.StrandsPerString;
+  var pixels = m.ChannelCount / m.ChannelCountPerNode;
+  var height = pixels / width;
+
+  $('#modelWidth').text(width + ' px');
+  $('#modelHeight').text(height + ' px');
+  $('#previewCanvas').attr({ width: width, height: height });
 });
+
 
 // and finally call:
 loadModels();
