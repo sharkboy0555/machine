@@ -55,23 +55,33 @@
     var modelsCfg = [];
 
     // Load models: first try REST, then fallback to static JSON
-    function loadModels() {
-      $.getJSON('/rest/overlay/models')
-        .done(function(list) {
-          populateDropdown(list);
-        })
-        .fail(function() {
-          $.getJSON('/media/config/model-overlays.json')
-            .done(function(data) {
-              modelsCfg = data.models;
-              populateDropdown(data.models.map(m => m.Name));
-            })
-            .fail(function() {
-              $('#modelSel').empty()
-                .append($('<option disabled>').text('Error loading models'));
-            });
+    // at the top of your <script> block, replace your entire loadModels() with:
+
+function loadModels() {
+  $.getJSON('/media/config/model-overlays.json')
+    .done(function(data) {
+      // stash the raw model info
+      modelsCfg = data.models;
+
+      // populate the dropdown
+      var sel = $('#modelSel').empty();
+      if (!data.models.length) {
+        sel.append($('<option disabled>').text('No models defined'));
+      } else {
+        data.models.forEach(function(m) {
+          sel.append($('<option>').val(m.Name).text(m.Name));
         });
-    }
+      }
+
+      // fire change so width/height + canvas size update
+      sel.trigger('change');
+    })
+    .fail(function() {
+      $('#modelSel').empty()
+        .append($('<option disabled>').text('Error loading models'));
+    });
+}
+
 
     // Populate <select> with model names
     function populateDropdown(names) {
