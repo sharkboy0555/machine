@@ -12,19 +12,16 @@ class MachinePlugin extends FPPPlugin {
 
     public function overlay($args) {
         $settings = $this->getSettings();
-        // Clear existing overlay
         $this->clearOverlay();
-        // Draw each line
         $lines = ['line1','line2','line3','line4'];
         $y = 0;
         foreach ($lines as $field) {
-            $text  = isset($settings[$field]) ? $settings[$field] : '';
-            $color = isset($settings['color']) ? $settings['color'] : '#FFFFFF';
+            $text  = $settings[$field] ?? '';
+            $color = $settings['color'] ?? '#FFFFFF';
             $this->drawText($text, 'fixed', 0, $y, $color);
-            $y += 12; // vertical spacing
+            $y += 12;
         }
     }
 }
 
-// Instantiate plugin
 new MachinePlugin();
