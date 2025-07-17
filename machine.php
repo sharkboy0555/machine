@@ -1,6 +1,4 @@
 <?php
-require_once dirname(__FILE__) . '/fpp_plugin.php';
-
 class MachinePlugin extends FPPPlugin {
     public function __construct() {
         parent::__construct();
@@ -19,7 +17,7 @@ class MachinePlugin extends FPPPlugin {
             $text  = $settings[$field] ?? '';
             $color = $settings['color'] ?? '#FFFFFF';
             $this->drawText($text, 'fixed', 0, $y, $color);
-            $y += 12;
+            $y += 12;  // line height
         }
     }
 }
