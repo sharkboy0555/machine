@@ -23,7 +23,7 @@
   <h2>Overlay Model</h2>
   <div class="field">
     <label for="modelSel">Model:</label>
-    <select id="modelSel"><option>Loading...</option></select>
+    <select id="modelSel"></select>
   </div>
   <div class="field">
     <label for="modelWidth">Width:</label>
@@ -50,17 +50,14 @@
   <button id="previewBtn">Apply &amp; Preview</button>
 
   <script>
-  $(function() {
-    // Model definitions fallback store
-    var modelsCfg = [];
-
-    // Load models: first try REST, then fallback to static JSON
-    // at the top of your <script> block, replace your entire loadModels() with:
+// right at the top of your <script> block, before anything else
+// at the top of your <script> block
+var modelsCfg = [];
 
 function loadModels() {
   $.getJSON('/media/config/model-overlays.json')
     .done(function(data) {
-      // stash the raw model info
+      // stash the full model objects
       modelsCfg = data.models;
 
       // populate the dropdown
@@ -69,46 +66,58 @@ function loadModels() {
         sel.append($('<option disabled>').text('No models defined'));
       } else {
         data.models.forEach(function(m) {
-          sel.append($('<option>').val(m.Name).text(m.Name));
+          sel.append(
+            $('<option>')
+              .val(m.Name)
+              .text(m.Name)
+          );
         });
       }
 
-      // fire change so width/height + canvas size update
+      // trigger change so width/height + canvas resize happen
       sel.trigger('change');
     })
     .fail(function() {
-      $('#modelSel').empty()
+      $('#modelSel')
+        .empty()
         .append($('<option disabled>').text('Error loading models'));
     });
 }
 
 
-    // Populate <select> with model names
-    function populateDropdown(names) {
-      var sel = $('#modelSel').empty();
-      if (!names.length) {
-        sel.append($('<option disabled>').text('No models defined'));
-      } else {
-        names.forEach(function(name) {
-          sel.append($('<option>').val(name).text(name));
-        });
-      }
-      sel.trigger('change');
-    }
+   function updateModelInfo(name) {
+  var m = modelsCfg.find(function(x) { return x.Name === name; });
+  if (!m) return;
+  // compute width/height from your JSON fields
+  var width   = m.StringCount * m.StrandsPerString;
+  var pixels  = m.ChannelCount / m.ChannelCountPerNode;
+  var height  = pixels / width;
+  $('#modelWidth').text(width + ' px');
+  $('#modelHeight').text(height + ' px');
+  $('#previewCanvas').attr({ width: width, height: height });
+}
+// after you’ve defined those functions, in your $(function(){…}) init:
+$('#modelSel').on('change', function() {
+  var name = $(this).val();
+  var m    = modelsCfg.find(x => x.Name === name);
+  if (!m) return;
 
-    // Update width/height and canvas size when model changes
-    function updateModelInfo(name) {
-      var model = modelsCfg.find(m => m.Name === name);
-      if (!model) return;
-      var width  = model.StringCount * model.StrandsPerString;
-      var pixels = model.ChannelCount / model.ChannelCountPerNode;
-      var height = pixels / width;
-      $('#modelWidth').text(width + ' px');
-      $('#modelHeight').text(height + ' px');
-      $('#previewCanvas').attr({ width: width, height: height });
-    }
+  // compute width/height
+  var width  = m.StringCount * m.StrandsPerString;
+  var pixels = m.ChannelCount / m.ChannelCountPerNode;
+  var height = pixels / width;
 
-    // Activate or deactivate the selected overlay model
+  $('#modelWidth').text(width + ' px');
+  $('#modelHeight').text(height + ' px');
+  $('#previewCanvas').attr({ width: width, height: height });
+});
+
+
+// and finally call:
+loadModels();
+
+
+    // === Activate / Deactivate ===
     $('#activateBtn').on('click', function() {
       var name = $('#modelSel').val();
       if (name) {
@@ -119,30 +128,24 @@ function loadModels() {
       $.post('/rest/overlay/models/deactivate');
     });
 
-    // Draw manual preview on canvas and fire overlay hook
+    // === Manual Preview ===
     $('#previewBtn').on('click', function() {
-      var name   = $('#modelSel').val();
+      var name = $('#modelSel').val();
       var canvas = document.getElementById('previewCanvas');
-      var ctx    = canvas.getContext('2d');
+      var ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = $('#color').val();
-      ctx.font      = '12px sans-serif';
+      ctx.font = '12px sans-serif';
       var y = 14;
       ['line1','line2','line3','line4'].forEach(function(id) {
         ctx.fillText($('#' + id).val() || '', 0, y);
         y += 14;
       });
-      $.get('/plugin/machine/overlay?preview=1&model=' +
-        encodeURIComponent(name)
-      );
+      // Trigger overlay hook with model
+      $.get('/plugin/machine/overlay?preview=1&model=' + encodeURIComponent(name));
     });
 
-    // Re-bind model change after populate
-    $('#modelSel').on('change', function() {
-      updateModelInfo($(this).val());
-    });
-
-    // Initial load
+    // === Init ===
     loadModels();
   });
   </script>
