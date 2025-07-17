@@ -8,3 +8,4 @@ $menuEntries = [
         'plugin' => 'machine'
     ],
 ];
+?>
