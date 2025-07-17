@@ -23,7 +23,7 @@
   <h2>Overlay Model</h2>
   <div class="field">
     <label for="modelSel">Model:</label>
-    <select id="modelSel"><option>Loading...</option></select>
+    <select id="modelSel"></select>
   </div>
   <div class="field">
     <label for="modelWidth">Width:</label>
@@ -51,21 +51,17 @@
 
   <script>
   $(function() {
-    let modelConfig = null;
-
+    // === FIXED: Load models from static JSON file ===
+    var modelsCfg = [];
     function loadModels() {
       $.getJSON('/media/config/model-overlays.json')
-        .done(function(cfg) {
-          modelConfig = cfg;
-          const sel = $('#modelSel').empty();
-          if (!cfg.models.length) {
-            sel.append($('<option disabled>').text('No models defined'));
-            return;
-          }
-          cfg.models.forEach(function(m) {
-            sel.append($('<option>').val(m.Name).text(m.Name));
+        .done(function(data) {
+          modelsCfg = data.models;
+          var $sel = $('#modelSel').empty();
+          data.models.forEach(function(m) {
+            $sel.append($('<option>').val(m.Name).text(m.Name));
           });
-          sel.trigger('change');
+          $sel.trigger('change');
         })
         .fail(function() {
           $('#modelSel').empty().append(
@@ -75,81 +71,49 @@
     }
 
     function updateModelInfo(name) {
-      if (!modelConfig) return;
-      const m = modelConfig.models.find(x => x.Name === name);
+      var m = modelsCfg.find(function(x) { return x.Name === name; });
       if (!m) return;
-      const width = m.StringCount * m.StrandsPerString;
-      const pixels = m.ChannelCount / m.ChannelCountPerNode;
-      const height = pixels / width;
+      var width = m.StringCount * m.StrandsPerString;
+      var pixels = m.ChannelCount / m.ChannelCountPerNode;
+      var height = pixels / width;
       $('#modelWidth').text(width + ' px');
       $('#modelHeight').text(height + ' px');
       $('#previewCanvas').attr({ width: width, height: height });
     }
 
     $('#modelSel').on('change', function() {
-      const name = $(this).val();
-      updateModelInfo(name);
+      updateModelInfo($(this).val());
     });
 
+    // === Activate / Deactivate ===
     $('#activateBtn').on('click', function() {
-      const name = $('#modelSel').val();
+      var name = $('#modelSel').val();
       if (name) {
-        $.post(
-          '/rest/overlay/models/' + encodeURIComponent(name) + '/activate'
-        );
+        $.post('/rest/overlay/models/' + encodeURIComponent(name) + '/activate');
       }
     });
-
     $('#deactivateBtn').on('click', function() {
       $.post('/rest/overlay/models/deactivate');
     });
 
-    // Load saved settings
-    $.getJSON('/plugin/machine/settings', function(data) {
-      if (data.model) {
-        $('#modelSel').val(data.model);
-        updateModelInfo(data.model);
-      }
-      ['line1','line2','line3','line4'].forEach(function(id) {
-        $('#' + id).val(data[id] || '');
-      });
-      $('#color').val(data.color || '#FFFFFF');
-    });
-
+    // === Manual Preview ===
     $('#previewBtn').on('click', function() {
-      const payload = {
-        model: $('#modelSel').val(),
-        line1: $('#line1').val(),
-        line2: $('#line2').val(),
-        line3: $('#line3').val(),
-        line4: $('#line4').val(),
-        color: $('#color').val()
-      };
-      // Draw locally on canvas
-      const canvas = document.getElementById('previewCanvas');
-      const ctx = canvas.getContext('2d');
+      var name = $('#modelSel').val();
+      var canvas = document.getElementById('previewCanvas');
+      var ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = payload.color;
+      ctx.fillStyle = $('#color').val();
       ctx.font = '12px sans-serif';
-      let y = 14;
+      var y = 14;
       ['line1','line2','line3','line4'].forEach(function(id) {
-        ctx.fillText(payload[id] || '', 0, y);
+        ctx.fillText($('#' + id).val() || '', 0, y);
         y += 14;
       });
-      // Save settings and trigger overlay hook
-      $.ajax({
-        url: '/plugin/machine/settings',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(payload)
-      }).always(function() {
-        $.get(
-          '/plugin/machine/overlay?preview=1&model=' +
-            encodeURIComponent(payload.model)
-        );
-      });
+      // Trigger overlay hook with model
+      $.get('/plugin/machine/overlay?preview=1&model=' + encodeURIComponent(name));
     });
 
+    // === Init ===
     loadModels();
   });
   </script>
