@@ -21,8 +21,8 @@
   <button id="saveBtn">Apply & Preview</button>
 
   <script>
-    function loadSettings(){
-      $.get('../plugin/machine/settings', function(data){
+    function loadSettings() {
+      $.get('../plugin/machine/settings', data => {
         $('#line1').val(data.line1);
         $('#line2').val(data.line2);
         $('#line3').val(data.line3);
@@ -31,7 +31,7 @@
       });
     }
 
-    function saveSettings(){
+    function saveSettings() {
       const payload = {
         line1: $('#line1').val(),
         line2: $('#line2').val(),
