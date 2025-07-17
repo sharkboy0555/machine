@@ -11,7 +11,7 @@
     body { font-family: sans-serif; padding: 15px; }
     h1, h2 { margin-top: 20px; }
     .field { margin-bottom: 12px; }
-    label { display: inline-block; width: 120px; }
+    label { display: inline-block; width: 120px; vertical-align: top; }
     select, input { width: 180px; }
     button { padding: 6px 10px; margin-right: 8px; }
     #previewCanvas { border: 1px solid #888; margin-top: 12px; display: block; }
@@ -23,7 +23,7 @@
   <h2>Overlay Model</h2>
   <div class="field">
     <label for="modelSel">Model:</label>
-    <select id="modelSel"></select>
+    <select id="modelSel"><option>Loading...</option></select>
   </div>
   <div class="field">
     <label for="modelWidth">Width:</label>
@@ -51,11 +51,13 @@
 
   <script>
   $(function() {
-    // Load models from static config
+    let modelConfig = null;
+
     function loadModels() {
       $.getJSON('/media/config/model-overlays.json')
         .done(function(cfg) {
-          var sel = $('#modelSel').empty();
+          modelConfig = cfg;
+          const sel = $('#modelSel').empty();
           if (!cfg.models.length) {
             sel.append($('<option disabled>').text('No models defined'));
             return;
@@ -72,30 +74,32 @@
         });
     }
 
-    // On model change, update metadata & canvas
+    function updateModelInfo(name) {
+      if (!modelConfig) return;
+      const m = modelConfig.models.find(x => x.Name === name);
+      if (!m) return;
+      const width = m.StringCount * m.StrandsPerString;
+      const pixels = m.ChannelCount / m.ChannelCountPerNode;
+      const height = pixels / width;
+      $('#modelWidth').text(width + ' px');
+      $('#modelHeight').text(height + ' px');
+      $('#previewCanvas').attr({ width: width, height: height });
+    }
+
     $('#modelSel').on('change', function() {
-      var name = $(this).val();
-      $.getJSON('/media/config/model-overlays.json')
-        .done(function(cfg) {
-          var m = cfg.models.find(x => x.Name === name);
-          if (m) {
-            var width = m.StringCount * m.StrandsPerString;
-            var pixels = m.ChannelCount / m.ChannelCountPerNode;
-            var height = pixels / width;
-            $('#modelWidth').text(width + ' px');
-            $('#modelHeight').text(height + ' px');
-            $('#previewCanvas').attr({ width: width, height: height });
-          }
-        });
+      const name = $(this).val();
+      updateModelInfo(name);
     });
 
-    // Activate/deactivate overlay model
     $('#activateBtn').on('click', function() {
-      var name = $('#modelSel').val();
+      const name = $('#modelSel').val();
       if (name) {
-        $.post('/rest/overlay/models/' + encodeURIComponent(name) + '/activate');
+        $.post(
+          '/rest/overlay/models/' + encodeURIComponent(name) + '/activate'
+        );
       }
     });
+
     $('#deactivateBtn').on('click', function() {
       $.post('/rest/overlay/models/deactivate');
     });
@@ -103,7 +107,8 @@
     // Load saved settings
     $.getJSON('/plugin/machine/settings', function(data) {
       if (data.model) {
-        $('#modelSel').val(data.model).trigger('change');
+        $('#modelSel').val(data.model);
+        updateModelInfo(data.model);
       }
       ['line1','line2','line3','line4'].forEach(function(id) {
         $('#' + id).val(data[id] || '');
@@ -111,9 +116,8 @@
       $('#color').val(data.color || '#FFFFFF');
     });
 
-    // Save settings and preview overlay
     $('#previewBtn').on('click', function() {
-      var payload = {
+      const payload = {
         model: $('#modelSel').val(),
         line1: $('#line1').val(),
         line2: $('#line2').val(),
@@ -121,13 +125,28 @@
         line4: $('#line4').val(),
         color: $('#color').val()
       };
+      // Draw locally on canvas
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = payload.color;
+      ctx.font = '12px sans-serif';
+      let y = 14;
+      ['line1','line2','line3','line4'].forEach(function(id) {
+        ctx.fillText(payload[id] || '', 0, y);
+        y += 14;
+      });
+      // Save settings and trigger overlay hook
       $.ajax({
         url: '/plugin/machine/settings',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(payload)
       }).always(function() {
-        $.get('/plugin/machine/overlay?preview=1&model=' + encodeURIComponent(payload.model));
+        $.get(
+          '/plugin/machine/overlay?preview=1&model=' +
+            encodeURIComponent(payload.model)
+        );
       });
     });
 
