@@ -23,7 +23,7 @@
   <h2>Overlay Model</h2>
   <div class="field">
     <label for="modelSel">Model:</label>
-    <select id="modelSel"><option>Loading...</option></select>
+    <select id="modelSel"></select>
   </div>
   <div class="field">
     <label for="modelWidth">Width:</label>
@@ -50,55 +50,66 @@
   <button id="previewBtn">Apply &amp; Preview</button>
 
   <script>
-  $(function() {
-    // Model definitions fallback store
-    var modelsCfg = [];
+// right at the top of your <script> block, before anything else
+var modelsCfg = [];
 
-    // Load models: first try REST, then fallback to static JSON
-    function loadModels() {
-      $.getJSON('/rest/overlay/models')
-        .done(function(list) {
-          populateDropdown(list);
-        })
-        .fail(function() {
-          $.getJSON('/media/config/model-overlays.json')
-            .done(function(data) {
-              modelsCfg = data.models;
-              populateDropdown(data.models.map(m => m.Name));
-            })
-            .fail(function() {
-              $('#modelSel').empty()
-                .append($('<option disabled>').text('Error loading models'));
-            });
-        });
-    }
-
-    // Populate <select> with model names
-    function populateDropdown(names) {
+function loadModels() {
+  // Try the FPP REST endpoint first
+  $.getJSON('/rest/overlay/models')
+    .done(function(list) {
       var sel = $('#modelSel').empty();
-      if (!names.length) {
-        sel.append($('<option disabled>').text('No models defined'));
+      if (!list.length) {
+        sel.append( $('<option disabled>').text('No models defined') );
       } else {
-        names.forEach(function(name) {
-          sel.append($('<option>').val(name).text(name));
+        list.forEach(function(name) {
+          sel.append( $('<option>').val(name).text(name) );
         });
       }
       sel.trigger('change');
-    }
+    })
+    .fail(function() {
+      // Fallback to the file you verified over SSH
+      $.getJSON('/media/config/model-overlays.json')
+        .done(function(data) {
+          modelsCfg = data.models;
+          var sel = $('#modelSel').empty();
+          if (!data.models.length) {
+            sel.append( $('<option disabled>').text('No models defined') );
+          } else {
+            data.models.forEach(function(m) {
+              sel.append( $('<option>').val(m.Name).text(m.Name) );
+            });
+          }
+          sel.trigger('change');
+        })
+        .fail(function() {
+          $('#modelSel').empty()
+            .append( $('<option disabled>').text('Error loading models') );
+        });
+    });
+}
 
-    // Update width/height and canvas size when model changes
-    function updateModelInfo(name) {
-      var model = modelsCfg.find(m => m.Name === name);
-      if (!model) return;
-      var width  = model.StringCount * model.StrandsPerString;
-      var pixels = model.ChannelCount / model.ChannelCountPerNode;
-      var height = pixels / width;
-      $('#modelWidth').text(width + ' px');
-      $('#modelHeight').text(height + ' px');
-      $('#previewCanvas').attr({ width: width, height: height });
-    }
+   function updateModelInfo(name) {
+  var m = modelsCfg.find(function(x) { return x.Name === name; });
+  if (!m) return;
+  // compute width/height from your JSON fields
+  var width   = m.StringCount * m.StrandsPerString;
+  var pixels  = m.ChannelCount / m.ChannelCountPerNode;
+  var height  = pixels / width;
+  $('#modelWidth').text(width + ' px');
+  $('#modelHeight').text(height + ' px');
+  $('#previewCanvas').attr({ width: width, height: height });
+}
+// after you’ve defined those functions, in your $(function(){…}) init:
+$('#modelSel').on('change', function() {
+  updateModelInfo( $(this).val() );
+});
 
-    // Activate or deactivate the selected overlay model
+// and finally call:
+loadModels();
+
+
+    // === Activate / Deactivate ===
     $('#activateBtn').on('click', function() {
       var name = $('#modelSel').val();
       if (name) {
@@ -109,30 +120,24 @@
       $.post('/rest/overlay/models/deactivate');
     });
 
-    // Draw manual preview on canvas and fire overlay hook
+    // === Manual Preview ===
     $('#previewBtn').on('click', function() {
-      var name   = $('#modelSel').val();
+      var name = $('#modelSel').val();
       var canvas = document.getElementById('previewCanvas');
-      var ctx    = canvas.getContext('2d');
+      var ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = $('#color').val();
-      ctx.font      = '12px sans-serif';
+      ctx.font = '12px sans-serif';
       var y = 14;
       ['line1','line2','line3','line4'].forEach(function(id) {
         ctx.fillText($('#' + id).val() || '', 0, y);
         y += 14;
       });
-      $.get('/plugin/machine/overlay?preview=1&model=' +
-        encodeURIComponent(name)
-      );
+      // Trigger overlay hook with model
+      $.get('/plugin/machine/overlay?preview=1&model=' + encodeURIComponent(name));
     });
 
-    // Re-bind model change after populate
-    $('#modelSel').on('change', function() {
-      updateModelInfo($(this).val());
-    });
-
-    // Initial load
+    // === Init ===
     loadModels();
   });
   </script>
