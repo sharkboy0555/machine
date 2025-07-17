@@ -1,10 +1,10 @@
 <?php
-$menuEntries = array(
-    array(
+$menuEntries = [
+    [
         'text'   => 'Machine Config',
         'type'   => 'status',
         'page'   => 'www/machine.html',
         'wrap'   => 1,
         'plugin' => 'machine'
-    ),
-);
+    ],
+];
