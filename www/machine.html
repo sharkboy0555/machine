@@ -13,10 +13,10 @@
 </head>
 <body>
   <h1>Machine Status Configuration</h1>
-  <div class="field"><label for="line1">Line 1:</label><input id="line1" type="text"></div>
-  <div class="field"><label for="line2">Line 2:</label><input id="line2" type="text"></div>
-  <div class="field"><label for="line3">Line 3:</label><input id="line3" type="text"></div>
-  <div class="field"><label for="line4">Line 4:</label><input id="line4" type="text"></div>
+  <div class="field"><label for="line1">Line 1:</label><input id="line1" type="text"></div>
+  <div class="field"><label for="line2">Line 2:</label><input id="line2" type="text"></div>
+  <div class="field"><label for="line3">Line 3:</label><input id="line3" type="text"></div>
+  <div class="field"><label for="line4">Line 4:</label><input id="line4" type="text"></div>
   <div class="field"><label for="color">Color:</label><input id="color" type="color" value="#FFFFFF"></div>
   <button id="saveBtn">Apply & Preview</button>
 
@@ -32,7 +32,7 @@
     }
 
     function saveSettings(){
-      var payload = {
+      const payload = {
         line1: $('#line1').val(),
         line2: $('#line2').val(),
         line3: $('#line3').val(),
@@ -44,17 +44,12 @@
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(payload),
-        success: function(){
-          // Preview overlay on matrix
-          $.get('../plugin/machine/overlay?preview=1');
-        }
+        success: () => $.get('../plugin/machine/overlay?preview=1')
       });
     }
 
-    $(document).ready(function(){
-      loadSettings();
-      $('#saveBtn').click(saveSettings);
-    });
+    $(loadSettings);
+    $('#saveBtn').click(saveSettings);
   </script>
 </body>
 </html>
