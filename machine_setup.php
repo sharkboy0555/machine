@@ -19,22 +19,26 @@
 <body>
   <h1>Machine Status Configuration</h1>
 
+  <h2>Overlay Model</h2>
   <div class="field">
-    <label for="modelSel">Overlay Model:</label>
-    <select id="modelSel"><option>Loading...</option></select>
+    <label for="modelSel">Model:</label>
+    <select id="modelSel"></select>
   </div>
   <div class="field">
     <label for="modelWidth">Width:</label>
-    <span id="modelWidth">&ndash;</span>
+    <span id="modelWidth">–</span>
   </div>
   <div class="field">
     <label for="modelHeight">Height:</label>
-    <span id="modelHeight">&ndash;</span>
+    <span id="modelHeight">–</span>
   </div>
   <div class="field">
     <button id="activateBtn">Activate</button>
     <button id="deactivateBtn">Deactivate</button>
   </div>
+
+  <h2>Overlay Preview</h2>
+  <canvas id="previewCanvas"></canvas>
 
   <h2>Manual Data Preview</h2>
   <div class="field"><label for="line1">Line 1:</label><input id="line1" type="text"></div>
@@ -46,59 +50,59 @@
 
   <script>
   $(function() {
-    // Load available overlay models
-    function loadModels() {
-      $.getJSON('/rest/overlay/models')
-        .done(function(models) {
-          var sel = $('#modelSel').empty();
-          if (!models.length) {
-            sel.append($('<option disabled>').text('No models defined'));
-          } else {
-            $.each(models, function(i, m) {
-              sel.append($('<option>').val(m).text(m));
-            });
-          }
-          sel.trigger('change');
-        })
-        .fail(function() {
-          $('#modelSel').empty().append($('<option disabled>').text('Error loading models'));
+    // Load models from static JSON file
+    $.getJSON('/media/config/model-overlays.json')
+      .done(function(cfg) {
+        var sel = $('#modelSel').empty();
+        if (!cfg.models.length) {
+          sel.append($('<option disabled>').text('No models defined'));
+          return;
+        }
+        cfg.models.forEach(function(m) {
+          sel.append($('<option>').val(m.Name).text(m.Name));
         });
-    }
+        sel.trigger('change');
+      })
+      .fail(function() {
+        $('#modelSel').empty().append(
+          $('<option disabled>').text('Error loading models')
+        );
+      });
 
-    // Update metadata when model changes
+    // On model change, update metadata & canvas
     $('#modelSel').on('change', function() {
-      var model = $(this).val();
-      if (!model) return;
-      $.getJSON('/rest/overlay/models/' + encodeURIComponent(model))
-        .done(function(info) {
-          $('#modelWidth').text(info.pixelCountX + ' px');
-          $('#modelHeight').text(info.pixelCountY + ' px');
+      var name = $(this).val();
+      $.getJSON('/media/config/model-overlays.json')
+        .done(function(cfg) {
+          var m = cfg.models.find(x => x.Name === name);
+          if (m) {
+            var width = m.StringCount * m.StrandsPerString;
+            var pixels = m.ChannelCount / m.ChannelCountPerNode;
+            var height = pixels / width;
+            $('#modelWidth').text(width + ' px');
+            $('#modelHeight').text(height + ' px');
+            $('#previewCanvas').attr({ width: width, height: height });
+          }
         });
     });
 
     // Activate/deactivate overlay model
     $('#activateBtn').on('click', function() {
-      var model = $('#modelSel').val();
-      if (model) {
-        $.post('/rest/overlay/models/' + encodeURIComponent(model) + '/activate');
-      }
+      var name = $('#modelSel').val();
+      if (name) $.post('/rest/overlay/models/' + encodeURIComponent(name) + '/activate');
     });
     $('#deactivateBtn').on('click', function() {
       $.post('/rest/overlay/models/deactivate');
     });
 
     // Load saved settings
-    function loadSettings() {
-      $.getJSON('/plugin/machine/settings', function(data) {
-        if (data.model) $('#modelSel').val(data.model).trigger('change');
-        ['line1','line2','line3','line4'].forEach(function(id) {
-          $('#' + id).val(data[id] || '');
-        });
-        $('#color').val(data.color || '#FFFFFF');
-      });
-    }
+    $.getJSON('/plugin/machine/settings', function(data) {
+      if (data.model) $('#modelSel').val(data.model).trigger('change');
+      ['line1','line2','line3','line4'].forEach(id => $('#' + id).val(data[id] || ''));
+      $('#color').val(data.color || '#FFFFFF');
+    });
 
-    // Save settings and preview manually
+    // Save settings and preview overlay
     $('#previewBtn').on('click', function() {
       var payload = {
         model: $('#modelSel').val(),
@@ -117,10 +121,6 @@
         $.get('/plugin/machine/overlay?preview=1&model=' + encodeURIComponent(payload.model));
       });
     });
-
-    // Initialize
-    loadModels();
-    loadSettings();
   });
   </script>
 </body>
