@@ -54,19 +54,37 @@
     // === FIXED: Load models from static JSON file ===
     var modelsCfg = [];
     function loadModels() {
-      $.getJSON('/media/config/model-overlays.json')
-        .done(function(data) {
-          modelsCfg = data.models;
-          var $sel = $('#modelSel').empty();
-          data.models.forEach(function(m) {
-            $sel.append($('<option>').val(m.Name).text(m.Name));
-          });
-          $sel.trigger('change');
+      $.getJSON('/rest/overlay/models')
+        .done(function(list) {
+          var sel = $('#modelSel').empty();
+          if (!list.length) {
+            sel.append($('<option disabled>').text('No models defined'));
+          } else {
+            list.forEach(function(name) {
+              sel.append($('<option>').val(name).text(name));
+            });
+          }
+          sel.trigger('change');
         })
-        .fail(function() {
-          $('#modelSel').empty().append(
-            $('<option disabled>').text('Error loading models')
-          );
+        .catch(function() {
+          $.getJSON('/media/config/model-overlays.json')
+            .done(function(data) {
+              modelsCfg = data.models;
+              var sel = $('#modelSel').empty();
+              if (!data.models.length) {
+                sel.append($('<option disabled>').text('No models defined'));
+              } else {
+                data.models.forEach(function(m) {
+                  sel.append($('<option>').val(m.Name).text(m.Name));
+                });
+              }
+              sel.trigger('change');
+            })
+            .fail(function() {
+              $('#modelSel').empty().append(
+                $('<option disabled>').text('Error loading models')
+              );
+            });
         });
     }
 
