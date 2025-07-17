@@ -112,23 +112,33 @@ $staticModels = $modelFile
     });
 
     // **NEW**: preview draws black background + white text, then activates the model
-    $('#previewBtn').click(function(){
-      var name   = $('#modelSel').val() || '';
-      var canvas = document.getElementById('previewCanvas');
-      var ctx    = canvas.getContext('2d');
+   $('#previewBtn').click(function(){
+  var name = $('#modelSel').val() || '';
+  var params = {
+    preview: 1,
+    model:   name,
+    color:   $('#color').val() || '#FFFFFF'
+  };
+  ['line1','line2','line3','line4'].forEach(function(id){
+    params[id] = $('#' + id).val() || '';
+  });
 
-      // black background
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // POST into your plugin’s overlay() hook
+  $.ajax({
+    url: '/plugin/machine/overlay',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(params)
+  }).done(function(){
+    // once pixels are in the block, activate that overlay model on the LED
+    if (name) {
+      $.post('/api/models/' + encodeURIComponent(name) + '/activate');
+    }
+  }).fail(function(err){
+    console.error('Overlay POST failed:', err);
+  });
+});
 
-      // draw your four lines in chosen color
-      ctx.fillStyle = $('#color').val() || '#FFFFFF';
-      ctx.font      = '12px sans-serif';
-      var y = 14;
-      ['line1','line2','line3','line4'].forEach(function(id){
-        ctx.fillText($('#'+id).val()||'', 0, y);
-        y += 14;
-      });
 
       // compose overlay hook URL with all params
       var params = {
