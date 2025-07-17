@@ -144,7 +144,7 @@ var blockName = "Matrix1";
 			color = '#' + color;
 
         pluginSettings['color'] = color;
-        SetPluginSetting('fpp-matrixtools', 'color', color, 0, 0);
+        SetPluginSetting('fpp-machine', 'color', color, 0, 0);
         $('#currentColor').css('background-color', color);
 
 		currentColor = color;
@@ -207,7 +207,7 @@ var blockName = "Matrix1";
 	function selectBlock(name, save = true) {
         if (save) {
             pluginSettings['model'] = name;
-            SetPluginSetting('fpp-matrixtools', 'model', name, 0, 0);
+            SetPluginSetting('fpp-machine', 'model', name, 0, 0);
         }
 
 		blockName = name;
@@ -256,7 +256,7 @@ var blockName = "Matrix1";
     function FontChanged() {
         var font = $('#fontList').val();
         pluginSettings['font'] = font;
-        SetPluginSetting('fpp-matrixtools', 'font', font, 0, 0);
+        SetPluginSetting('fpp-machine', 'font', font, 0, 0);
     }
 
 	function GetFontList() {
@@ -601,10 +601,10 @@ var blockName = "Matrix1";
             <tr><td>Current Color:</td><td><span id='currentColor' onClick="ForceShowColorPicker();" style='cursor: pointer;'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>
                 </tr>
             <tr><td>Show Color Picker:</td>
-                <td><? PrintSettingCheckbox("Show Color Picker", "ShowColorPicker", 0, 0, "1", "0", "fpp-matrixtools", "ShowColorPicker"); ?></td>
+                <td><? PrintSettingCheckbox("Show Color Picker", "ShowColorPicker", 0, 0, "1", "0", "fpp-machine", "ShowColorPicker"); ?></td>
                 </tr>
             <tr><td>Auto-Fill:</td>
-                <td><? PrintSettingCheckbox("Auto Fill Block", "AutoFill", 0, 0, "1", "0", "fpp-matrixtools", "autoFillChanged"); ?></td>
+                <td><? PrintSettingCheckbox("Auto Fill Block", "AutoFill", 0, 0, "1", "0", "fpp-machine", "autoFillChanged"); ?></td>
                 </tr>
         </table>
         </div>
@@ -627,7 +627,7 @@ var blockName = "Matrix1";
 				<table border=0><tr><td valign='top'>
 					<table border=0>
                     <tr><td>Auto-Enable:</td>
-					    <td><? PrintSettingCheckbox("Auto-Enable", "autoEnable", 0, 0, "1", "0", "fpp-matrixtools"); ?>
+					    <td><? PrintSettingCheckbox("Auto-Enable", "autoEnable", 0, 0, "1", "0", "fpp-machine"); ?>
                             </td></tr>
 
 					<tr><td>Text:</td><td colspan=4><textarea cols='64' rows='2' id='inputText'></textarea></td></tr>
@@ -648,11 +648,11 @@ $fontSizes = array(
 '52' => '52', '54' => '54', '56' => '56', '58' => '58', '60' => '60',
 '64' => '64', '70' => '70', '74' => '74', '80' => '80',
 );
-PrintSettingSelect('Font Size', 'fontSize', 0, 0, '10', $fontSizes, 'fpp-matrixtools');
+PrintSettingSelect('Font Size', 'fontSize', 0, 0, '10', $fontSizes, 'fpp-machine');
 ?>
 							&nbsp;
                             Anti-Aliased:&nbsp;
-					        <? PrintSettingCheckbox("Anti-Alias", "antiAliased", 0, 0, "1", "0", "fpp-matrixtools"); ?>
+					        <? PrintSettingCheckbox("Anti-Alias", "antiAliased", 0, 0, "1", "0", "fpp-machine"); ?>
 							</td>
                         </tr>
 					<tr><td>Position:</td>
@@ -665,7 +665,7 @@ $textPositions = array(
 'Bottom to Top' => 'B2T',
 'Top to Bottom' => 'T2B',
 );
-PrintSettingSelect('Position', 'textPosition', 0, 0, 'Center', $textPositions, 'fpp-matrixtools');
+PrintSettingSelect('Position', 'textPosition', 0, 0, 'Center', $textPositions, 'fpp-machine');
 ?>
 							</td>
                         </tr>
@@ -683,7 +683,7 @@ $scrollSpeeds = array(
 '100' => '100', '120' => '120', '140' => '140', '160' => '160', '180' => '180',
 '200' => '200'
 );
-PrintSettingSelect('Scroll Speed', 'scrollSpeed', 0, 0, '10', $scrollSpeeds, 'fpp-matrixtools');
+PrintSettingSelect('Scroll Speed', 'scrollSpeed', 0, 0, '10', $scrollSpeeds, 'fpp-machine');
 ?>
 							(pixels per second)
 							</td>
@@ -733,13 +733,13 @@ PrintSettingSelect('Scroll Speed', 'scrollSpeed', 0, 0, '10', $scrollSpeeds, 'fp
 			<table border=0>
 				<tr><td>Matrix</td>
 					<td width='40px'>&nbsp;</td>
-					<td>Large Pen: <? PrintSettingCheckbox("Large Pen", "LargePen", 0, 0, "1", "0", "fpp-matrixtools", ""); ?></td>
+					<td>Large Pen: <? PrintSettingCheckbox("Large Pen", "LargePen", 0, 0, "1", "0", "fpp-machine", ""); ?></td>
 					<td width='40px'>&nbsp;</td>
-					<td>Round Pixels: <? PrintSettingCheckbox("Show Round Pixels", "ShowRoundPixels", 0, 0, "1", "0", "fpp-matrixtools", "refreshMatrix"); ?></td>
+					<td>Round Pixels: <? PrintSettingCheckbox("Show Round Pixels", "ShowRoundPixels", 0, 0, "1", "0", "fpp-machine", "refreshMatrix"); ?></td>
 					<td width='40px'>&nbsp;</td>
-					<td>Show Text: <? PrintSettingCheckbox("Show Text Effect", "ShowTextEffect", 0, 0, "1", "0", "fpp-matrixtools"); ?></td>
+					<td>Show Text: <? PrintSettingCheckbox("Show Text Effect", "ShowTextEffect", 0, 0, "1", "0", "fpp-machine"); ?></td>
 					<td class='showGridWrapper' width='40px'>&nbsp;</td>
-					<td class='showGridWrapper'>Show Grid: <? PrintSettingCheckbox("Show Grid", "ShowGrid", 0, 0, "1", "0", "fpp-matrixtools", "refreshMatrix"); ?></td>
+					<td class='showGridWrapper'>Show Grid: <? PrintSettingCheckbox("Show Grid", "ShowGrid", 0, 0, "1", "0", "fpp-machine", "refreshMatrix"); ?></td>
 				</tr>
 			</table>
 				<table>
