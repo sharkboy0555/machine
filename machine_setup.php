@@ -27,10 +27,10 @@
     <select id="modelSel"></select>
   </div>
   <div class="field">
-    <label for="modelWidth">Width:</label><span id="modelWidth"></span>
+    <label>Width:</label><span id="modelWidth"></span>
   </div>
   <div class="field">
-    <label for="modelHeight">Height:</label><span id="modelHeight"></span>
+    <label>Height:</label><span id="modelHeight"></span>
   </div>
   <div class="field">
     <button id="activateBtn">Activate</button>
@@ -51,38 +51,46 @@
   <script>
     // Load overlay models via FPP REST
     function loadModels() {
-      $.getJSON('/rest/overlay/models', models => {
-        const sel = $('#modelSel').empty();
-        if(models.length === 0) {
-          sel.append($('<option disabled>').text('No models defined'));
-          return;
-        }
-        models.forEach(m => sel.append($('<option>').val(m).text(m)));
-        sel.change(); // initial display
-      }).fail(err => {
-        console.error('Error fetching models:', err);
-        $('#modelSel').empty().append($('<option disabled>').text('Error loading models'));  
-      });
-    }
+      $.getJSON('/rest/overlay/models')
+        .done(function(models) {
+          const sel = $('#modelSel').empty();
+          if (models.length === 0) {
+            sel.append($('<option disabled>').text('No models defined'));
+            return;
+          }
+          models.forEach(function(m) {
+            sel.append($('<option>').val(m).text(m));
+          });
+          sel.trigger('change');
+        })
+        .fail(function(err) {
+          console.error('Error fetching models:', err);
+          $('#modelSel').empty().append($('<option disabled>').text('Error loading models'));
+        });
     }
 
-    // Display model dimensions and resize canvas
+    // Display selected model's metadata and resize canvas
     function showModelInfo() {
       const model = $('#modelSel').val();
       if (!model) return;
-      $.getJSON(`/rest/overlay/models/${model}`, info => {
-        $('#modelWidth').text(info.pixelCountX + ' px');
-        $('#modelHeight').text(info.pixelCountY + ' px');
-        const canvas = document.getElementById('previewCanvas');
-        canvas.width = info.pixelCountX;
-        canvas.height = info.pixelCountY;
-      });
+      $.getJSON('/rest/overlay/models/' + encodeURIComponent(model))
+        .done(function(info) {
+          $('#modelWidth').text(info.pixelCountX + ' px');
+          $('#modelHeight').text(info.pixelCountY + ' px');
+          const canvas = document.getElementById('previewCanvas');
+          canvas.width = info.pixelCountX;
+          canvas.height = info.pixelCountY;
+        })
+        .fail(function(err) {
+          console.error('Error fetching model info:', err);
+        });
     }
 
     // Activate/deactivate overlay model
     function activateModel() {
       const model = $('#modelSel').val();
-      $.post(`/rest/overlay/models/${model}/activate`);
+      if (!model) return;
+      $.post('/rest/overlay/models/' + encodeURIComponent(model) + '/activate');
     }
     function deactivateModel() {
       $.post('/rest/overlay/models/deactivate');
@@ -90,10 +98,16 @@
 
     // Load manual settings
     function loadSettings() {
-      $.getJSON('/plugin/machine/settings', data => {
-        ['line1','line2','line3','line4'].forEach(id => $('#' + id).val(data[id] || ''));
-        $('#color').val(data.color || '#FFFFFF');
-      });
+      $.getJSON('/plugin/machine/settings')
+        .done(function(data) {
+          ['line1','line2','line3','line4'].forEach(function(id) {
+            $('#' + id).val(data[id] || '');
+          });
+          $('#color').val(data.color || '#FFFFFF');
+        })
+        .fail(function(err) {
+          console.error('Error loading settings:', err);
+        });
     }
 
     // Draw onto canvas and send preview overlay
@@ -104,21 +118,21 @@
       ctx.fillStyle = $('#color').val() || '#FFFFFF';
       ctx.font = '12px sans-serif';
       let y = 14;
-      ['line1','line2','line3','line4'].forEach(id => {
+      ['line1','line2','line3','line4'].forEach(function(id) {
         ctx.fillText($('#' + id).val() || '', 0, y);
         y += 14;
       });
       const dataURL = canvas.toDataURL().split(',')[1];
       const model = $('#modelSel').val();
       $.ajax({
-        url: `/plugin/machine/overlay?preview=1`,
+        url: '/plugin/machine/overlay?preview=1',
         type: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ model: model, data: dataURL }),
+        data: JSON.stringify({ model: model, data: dataURL })
       });
     }
 
-    $(document).ready(() => {
+    $(document).ready(function() {
       $('#modelSel').on('change', showModelInfo);
       $('#activateBtn').on('click', activateModel);
       $('#deactivateBtn').on('click', deactivateModel);
