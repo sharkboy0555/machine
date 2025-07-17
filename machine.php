@@ -1,4 +1,8 @@
 <?php
+// Plugin entrypoint for the 'machine' overlay
+// FPPPlugin base class is provided by FPP core, no additional includes required.
+// NOTE: No closing '?>' tag is needed at the end of this file (per PHP best practices).
+
 class MachinePlugin extends FPPPlugin {
     public function __construct() {
         parent::__construct();
