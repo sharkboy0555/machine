@@ -66,48 +66,56 @@ $staticModels = $modelFile
 
   <script>
   $(function(){
-    // server-side fallback models
+    // fallback list of full model objects from PHP
     var staticModels = <?php echo json_encode($staticModels, JSON_HEX_TAG); ?>;
     var modelsCfg    = [];
 
-    // populate dropdown with names
-    function populateDropdown(names) {
+    /**
+     * Populate #modelSel from either:
+     *   - an array of strings [ "Main", "1", ... ]
+     *   - an array of objects [ {Name:"Main",...}, ... ]
+     */
+    function populateDropdown(models) {
       var sel = $('#modelSel').empty();
-      if (!names.length) {
+      if (!models.length) {
         sel.append($('<option disabled>').text('No models defined'));
       } else {
-        names.forEach(n => sel.append($('<option>').val(n).text(n)));
+        models.forEach(function(m) {
+          var name = (typeof m === 'string' ? m : m.Name);
+          sel.append($('<option>').val(name).text(name));
+        });
       }
       sel.trigger('change');
     }
 
-    // load models: try API, then fallback
+    // Load models from FPP API or fallback to static
     function loadModels() {
       $.getJSON('/api/overlays/models')
-        .done(function(list){
-          modelsCfg = list.map(name => ({ Name: name }));
+        .done(function(list) {
+          // list is array of strings
+          modelsCfg = list.map(function(name){ return { Name: name }; });
           populateDropdown(list);
         })
-        .fail(function(){
+        .fail(function() {
           modelsCfg = staticModels;
-          populateDropdown(staticModels.map(m => m.Name));
+          populateDropdown(staticModels);
         });
     }
 
-    // update dimensions & canvas size
+    // Update width/height and canvas size for selected model
     function updateModelInfo(name) {
-      // try API metadata
+      // Try API metadata endpoint
       $.getJSON('/api/overlays/model/' + encodeURIComponent(name))
-        .done(function(info){
+        .done(function(info) {
           var width  = info.StringCount * info.StrandsPerString;
           var height = (info.ChannelCount / info.ChannelCountPerNode) / width;
           $('#modelWidth').text(width + ' px');
           $('#modelHeight').text(height + ' px');
           $('#previewCanvas').attr({ width: width, height: height });
         })
-        .fail(function(){
-          // fallback to staticModels
-          var m = modelsCfg.find(x => x.Name === name);
+        .fail(function() {
+          // Fallback to staticModels array
+          var m = modelsCfg.find(function(x){ return x.Name === name; });
           if (!m) return;
           var width  = m.StringCount * m.StrandsPerString;
           var height = (m.ChannelCount / m.ChannelCountPerNode) / width;
@@ -117,12 +125,12 @@ $staticModels = $modelFile
         });
     }
 
-    // hook up selector change
+    // Wire up model selector change
     $('#modelSel').change(function(){
       updateModelInfo($(this).val());
     });
 
-    // activate model by setting state = 1
+    // Activate (state=1) and Deactivate (state=0) the overlay model
     $('#activateBtn').click(function(){
       var name = $('#modelSel').val();
       if (!name) return;
@@ -133,8 +141,6 @@ $staticModels = $modelFile
         data: JSON.stringify({ State: 1 })
       });
     });
-
-    // deactivate (turn off) model state = 0
     $('#deactivateBtn').click(function(){
       var name = $('#modelSel').val();
       if (!name) return;
@@ -146,39 +152,37 @@ $staticModels = $modelFile
       });
     });
 
-    // Apply & Preview: draw locally, POST form data, then set state = 1
+    // Apply & Preview: draw locally, POST form data, then set state=1
     $('#previewBtn').click(function(){
       var name   = $('#modelSel').val() || '';
       var canvas = document.getElementById('previewCanvas');
       var ctx    = canvas.getContext('2d');
 
-      // black background
+      // Black background + text
       ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // draw text lines
+      ctx.fillRect(0,0,canvas.width,canvas.height);
       ctx.fillStyle = $('#color').val() || '#FFFFFF';
       ctx.font      = '12px sans-serif';
       var y = 14;
       ['line1','line2','line3','line4'].forEach(function(id){
-        ctx.fillText($('#'+id).val()||'', 0, y);
+        ctx.fillText($('#'+id).val()||'',0,y);
         y += 14;
       });
 
-      // send form-encoded to your overlay hook
+      // Prepare form-encoded parameters
       var params = {
-        preview:1,
-        model:  name,
-        color:  $('#color').val()||'#FFFFFF',
-        line1:  $('#line1').val()||'',
-        line2:  $('#line2').val()||'',
-        line3:  $('#line3').val()||'',
-        line4:  $('#line4').val()||''
+        preview: 1,
+        model:   name,
+        color:   $('#color').val()||'#FFFFFF',
+        line1:   $('#line1').val()||'',
+        line2:   $('#line2').val()||'',
+        line3:   $('#line3').val()||'',
+        line4:   $('#line4').val()||''
       };
 
+      // POST to your plugin's overlay hook, then enable on matrix
       $.post('/plugin/machine/overlay', params)
         .done(function(){
-          // then PUT state=1 to light the matrix
           if (name) {
             $.ajax({
               url: '/api/overlays/model/' + encodeURIComponent(name) + '/state',
@@ -193,7 +197,7 @@ $staticModels = $modelFile
         });
     });
 
-    // initial load
+    // Initial load
     loadModels();
   });
   </script>
