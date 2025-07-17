@@ -1,116 +1,123 @@
 <?php
-// machine_setup.php
-// This page is wrapped by FPP header + footer (wrap=1)
+// machine_setup.php — full HTML page wrapped by FPP header/footer
 ?>
-<style>
-  .field { margin-bottom: 8px; }
-  label { display: inline-block; width: 140px; }
-  input, select, button { margin-right: 8px; }
-</style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Machine Config</title>
+  <script src="../js/jquery.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 15px; }
+    h1, h2 { margin-top: 20px; }
+    .field { margin-bottom: 12px; }
+    label { display: inline-block; width: 120px; vertical-align: top; }
+    input, select { width: 180px; }
+    span { font-weight: bold; margin-left: 6px; }
+    button { padding: 6px 10px; margin-right: 8px; }
+    #previewCanvas { border: 1px solid #888; margin-top: 12px; display: block; }
+  </style>
+</head>
+<body>
+  <h1>Machine Status Configuration</h1>
 
-<h1>Machine Status Configuration</h1>
+  <h2>Overlay Model</h2>
+  <div class="field">
+    <label for="modelSel">Model:</label>
+    <select id="modelSel"></select>
+  </div>
+  <div class="field">
+    <label for="modelWidth">Width:</label><span id="modelWidth"></span>
+  </div>
+  <div class="field">
+    <label for="modelHeight">Height:</label><span id="modelHeight"></span>
+  </div>
+  <div class="field">
+    <button id="activateBtn">Activate</button>
+    <button id="deactivateBtn">Deactivate</button>
+  </div>
 
-<h2>Overlay Model</h2>
-<div class="field">
-  <label for="modelSel">Model:</label>
-  <select id="modelSel"></select>
-</div>
-<div class="field">
-  <label>Width:</label> <span id="modelWidth"></span>
-  <label>Height:</label> <span id="modelHeight"></span>
-</div>
-<canvas id="previewCanvas" style="display:none;"></canvas>
+  <h2>Overlay Preview</h2>
+  <canvas id="previewCanvas"></canvas>
 
-<div class="field">
-  <button id="activateBtn">Activate</button>
-  <button id="deactivateBtn">Deactivate</button>
-</div>
+  <h2>Manual Data Preview</h2>
+  <div class="field"><label for="line1">Line 1:</label><input id="line1" type="text"></div>
+  <div class="field"><label for="line2">Line 2:</label><input id="line2" type="text"></div>
+  <div class="field"><label for="line3">Line 3:</label><input id="line3" type="text"></div>
+  <div class="field"><label for="line4">Line 4:</label><input id="line4" type="text"></div>
+  <div class="field"><label for="color">Color:</label><input id="color" type="color" value="#FFFFFF"></div>
+  <button id="saveBtn">Apply &amp; Preview</button>
 
-<h2>Manual Data Preview</h2>
-<div class="field">
-  <label for="line1">Line 1:</label>
-  <input id="line1" type="text">
-</div>
-<div class="field">
-  <label for="line2">Line 2:</label>
-  <input id="line2" type="text">
-</div>
-<div class="field">
-  <label for="line3">Line 3:</label>
-  <input id="line3" type="text">
-</div>
-<div class="field">
-  <label for="line4">Line 4:</label>
-  <input id="line4" type="text">
-</div>
-<div class="field">
-  <label for="color">Color:</label>
-  <input id="color" type="color" value="#FFFFFF">
-</div>
-<button id="saveBtn">Apply &amp; Preview</button>
+  <script>
+    // Load overlay models via FPP REST
+    function loadModels() {
+      $.getJSON('/rest/overlay/models', models => {
+        const sel = $('#modelSel').empty();
+        models.forEach(m => sel.append($('<option>').val(m).text(m)));
+        sel.change(); // initial display
+      });
+    }
 
-<script>
-// --- MODEL HANDLING (identical to Matrix Tools) ---
-async function loadModels() {
-  try {
-    const res = await fetch('/rest/overlay/models');
-    const models = await res.json();
-    const sel = document.getElementById('modelSel');
-    sel.innerHTML = '';
-    models.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m;
-      opt.text  = m;
-      sel.add(opt);
+    // Display model dimensions and resize canvas
+    function showModelInfo() {
+      const model = $('#modelSel').val();
+      if (!model) return;
+      $.getJSON(`/rest/overlay/models/${model}`, info => {
+        $('#modelWidth').text(info.pixelCountX + ' px');
+        $('#modelHeight').text(info.pixelCountY + ' px');
+        const canvas = document.getElementById('previewCanvas');
+        canvas.width = info.pixelCountX;
+        canvas.height = info.pixelCountY;
+      });
+    }
+
+    // Activate/deactivate overlay model
+    function activateModel() {
+      const model = $('#modelSel').val();
+      $.post(`/rest/overlay/models/${model}/activate`);
+    }
+    function deactivateModel() {
+      $.post('/rest/overlay/models/deactivate');
+    }
+
+    // Load manual settings
+    function loadSettings() {
+      $.getJSON('/plugin/machine/settings', data => {
+        ['line1','line2','line3','line4'].forEach(id => $('#' + id).val(data[id] || ''));
+        $('#color').val(data.color || '#FFFFFF');
+      });
+    }
+
+    // Draw onto canvas and send preview overlay
+    function saveAndPreview() {
+      const canvas = document.getElementById('previewCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = $('#color').val() || '#FFFFFF';
+      ctx.font = '12px sans-serif';
+      let y = 14;
+      ['line1','line2','line3','line4'].forEach(id => {
+        ctx.fillText($('#' + id).val() || '', 0, y);
+        y += 14;
+      });
+      const dataURL = canvas.toDataURL().split(',')[1];
+      const model = $('#modelSel').val();
+      $.ajax({
+        url: `/plugin/machine/overlay?preview=1`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ model: model, data: dataURL }),
+      });
+    }
+
+    $(document).ready(() => {
+      $('#modelSel').on('change', showModelInfo);
+      $('#activateBtn').on('click', activateModel);
+      $('#deactivateBtn').on('click', deactivateModel);
+      $('#saveBtn').on('click', saveAndPreview);
+      loadModels();
+      loadSettings();
     });
-  } catch(e) {
-    console.error('Error loading overlay models:', e);
-  }
-}
-
-async function activateModel() {
-  const model = document.getElementById('modelSel').value;
-  await fetch(`/rest/overlay/models/${model}/activate`, { method: 'POST' });
-}
-async function deactivateModel() {
-  await fetch('/rest/overlay/models/deactivate`, { method: 'POST' });
-}
-
-// --- MANUAL PREVIEW HANDLING ---
-async function loadSettings() {
-  try {
-    const res = await fetch('/plugin/machine/settings');
-    const data = await res.json();
-    ['line1','line2','line3','line4'].forEach(id => {
-      document.getElementById(id).value = data[id] || '';
-    });
-    document.getElementById('color').value = data.color || '#FFFFFF';
-  } catch(e) {
-    console.error('Error loading settings:', e);
-  }
-}
-
-async function saveAndPreview() {
-  const payload = {};
-  ['line1','line2','line3','line4'].forEach(id => {
-    payload[id] = document.getElementById(id).value;
-  });
-  payload.color = document.getElementById('color').value;
-
-  await fetch('/plugin/machine/settings', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(payload)
-  });
-  // trigger the overlay hook with preview=1
-  await fetch('/plugin/machine/overlay?preview=1');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  loadModels();
-  loadSettings();
-  document.getElementById('activateBtn').addEventListener('click', activateModel);
-  document.getElementById('deactivateBtn').addEventListener('click', deactivateModel);
-  document.getElementById('saveBtn').addEventListener('click', saveAndPreview);
-});
-</script>
+  </script>
+</body>
+</html>
