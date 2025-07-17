@@ -1,6 +1,6 @@
 {
   "repoName": "machine",
-  "name": "Machine",
+  "name": "machine",
   "author": "Zach Chambers <zchambers@example.com>",
   "description": "Live machine-status scoreboard overlay for FPP, configurable via web UI.",
   "homeURL": "https://github.com/sharkboy0555/machine",
@@ -21,7 +21,6 @@
     },
     {
       "minFPPVersion": "8.0",
-      "maxFPPVersion": "0",
       "branch": "REST-API",
       "sha": ""
     }
