@@ -6,7 +6,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Machine Config</title>
-  <script src="../js/jquery.min.js"></script>
+  <script src="/js/jquery.min.js"></script>
   <style>
     body { font-family: sans-serif; padding: 15px; }
     h1, h2 { margin-top: 20px; }
@@ -53,9 +53,17 @@
     function loadModels() {
       $.getJSON('/rest/overlay/models', models => {
         const sel = $('#modelSel').empty();
+        if(models.length === 0) {
+          sel.append($('<option disabled>').text('No models defined'));
+          return;
+        }
         models.forEach(m => sel.append($('<option>').val(m).text(m)));
         sel.change(); // initial display
+      }).fail(err => {
+        console.error('Error fetching models:', err);
+        $('#modelSel').empty().append($('<option disabled>').text('Error loading models'));  
       });
+    }
     }
 
     // Display model dimensions and resize canvas
