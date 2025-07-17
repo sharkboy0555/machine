@@ -21,13 +21,13 @@ $staticModels = $modelFile
     label { display: inline-block; width: 120px; vertical-align: top; }
     select, input { width: 180px; }
     button { padding: 6px 10px; margin-right: 8px; }
-    /* scale up the preview for readability */
+    /* scale preview up for readability */
     #previewCanvas {
       border: 1px solid #888;
       margin-top: 12px;
       display: block;
-      width: 320px;    /* 64px * 5 */
-      height: 160px;   /* 32px * 5 */
+      width: 320px;    /* 64px × 5 */
+      height: 160px;   /* 32px × 5 */
       image-rendering: pixelated;
     }
   </style>
@@ -66,29 +66,27 @@ $staticModels = $modelFile
 
   <script>
   $(function(){
-    // server‐side static fallback
+    // server-side fallback models
     var staticModels = <?php echo json_encode($staticModels, JSON_HEX_TAG); ?>;
     var modelsCfg    = [];
 
-    // fill the dropdown with given names
+    // populate dropdown with names
     function populateDropdown(names) {
       var sel = $('#modelSel').empty();
-      if (names.length) {
-        names.forEach(function(n){
-          sel.append($('<option>').val(n).text(n));
-        });
-      } else {
+      if (!names.length) {
         sel.append($('<option disabled>').text('No models defined'));
+      } else {
+        names.forEach(n => sel.append($('<option>').val(n).text(n)));
       }
       sel.trigger('change');
     }
 
-    // try the API first, then fallback to static JSON
+    // load models: try API, then fallback
     function loadModels() {
-      $.getJSON('/api/models')
-        .done(function(apiArray){
-          modelsCfg = apiArray;
-          populateDropdown(apiArray.map(m => m.Name));
+      $.getJSON('/api/overlays/models')
+        .done(function(list){
+          modelsCfg = list.map(name => ({ Name: name }));
+          populateDropdown(list);
         })
         .fail(function(){
           modelsCfg = staticModels;
@@ -96,35 +94,59 @@ $staticModels = $modelFile
         });
     }
 
-    // update width/height & canvas size
+    // update dimensions & canvas size
     function updateModelInfo(name) {
-      var m = modelsCfg.find(x => x.Name === name);
-      if (!m) return;
-      var width   = m.StringCount * m.StrandsPerString;
-      var pixels  = m.ChannelCount / m.ChannelCountPerNode;
-      var height  = pixels / width;
-      $('#modelWidth').text(width + ' px');
-      $('#modelHeight').text(height + ' px');
-      $('#previewCanvas').attr({ width: width, height: height });
+      // try API metadata
+      $.getJSON('/api/overlays/model/' + encodeURIComponent(name))
+        .done(function(info){
+          var width  = info.StringCount * info.StrandsPerString;
+          var height = (info.ChannelCount / info.ChannelCountPerNode) / width;
+          $('#modelWidth').text(width + ' px');
+          $('#modelHeight').text(height + ' px');
+          $('#previewCanvas').attr({ width: width, height: height });
+        })
+        .fail(function(){
+          // fallback to staticModels
+          var m = modelsCfg.find(x => x.Name === name);
+          if (!m) return;
+          var width  = m.StringCount * m.StrandsPerString;
+          var height = (m.ChannelCount / m.ChannelCountPerNode) / width;
+          $('#modelWidth').text(width + ' px');
+          $('#modelHeight').text(height + ' px');
+          $('#previewCanvas').attr({ width: width, height: height });
+        });
     }
 
-    // wire up the model selector
+    // hook up selector change
     $('#modelSel').change(function(){
       updateModelInfo($(this).val());
     });
 
-    // activate / deactivate
+    // activate model by setting state = 1
     $('#activateBtn').click(function(){
       var name = $('#modelSel').val();
-      if (name) {
-        $.post('/api/models/' + encodeURIComponent(name) + '/activate');
-      }
-    });
-    $('#deactivateBtn').click(function(){
-      $.post('/api/models/deactivate');
+      if (!name) return;
+      $.ajax({
+        url: '/api/overlays/model/' + encodeURIComponent(name) + '/state',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ State: 1 })
+      });
     });
 
-    // Apply & Preview: draw locally, POST form data, then activate
+    // deactivate (turn off) model state = 0
+    $('#deactivateBtn').click(function(){
+      var name = $('#modelSel').val();
+      if (!name) return;
+      $.ajax({
+        url: '/api/overlays/model/' + encodeURIComponent(name) + '/state',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ State: 0 })
+      });
+    });
+
+    // Apply & Preview: draw locally, POST form data, then set state = 1
     $('#previewBtn').click(function(){
       var name   = $('#modelSel').val() || '';
       var canvas = document.getElementById('previewCanvas');
@@ -139,27 +161,31 @@ $staticModels = $modelFile
       ctx.font      = '12px sans-serif';
       var y = 14;
       ['line1','line2','line3','line4'].forEach(function(id){
-        ctx.fillText($('#'+id).val() || '', 0, y);
+        ctx.fillText($('#'+id).val()||'', 0, y);
         y += 14;
       });
 
-      // prepare form‐encoded params
+      // send form-encoded to your overlay hook
       var params = {
         preview:1,
         model:  name,
-        color:  $('#color').val() || '#FFFFFF',
-        line1:  $('#line1').val() || '',
-        line2:  $('#line2').val() || '',
-        line3:  $('#line3').val() || '',
-        line4:  $('#line4').val() || ''
+        color:  $('#color').val()||'#FFFFFF',
+        line1:  $('#line1').val()||'',
+        line2:  $('#line2').val()||'',
+        line3:  $('#line3').val()||'',
+        line4:  $('#line4').val()||''
       };
 
-      // POST to overlay hook
       $.post('/plugin/machine/overlay', params)
         .done(function(){
-          // then activate on the matrix
+          // then PUT state=1 to light the matrix
           if (name) {
-            $.post('/api/models/' + encodeURIComponent(name) + '/activate');
+            $.ajax({
+              url: '/api/overlays/model/' + encodeURIComponent(name) + '/state',
+              type: 'PUT',
+              contentType: 'application/json',
+              data: JSON.stringify({ State: 1 })
+            });
           }
         })
         .fail(function(err){
@@ -167,7 +193,7 @@ $staticModels = $modelFile
         });
     });
 
-    // initial load of models
+    // initial load
     loadModels();
   });
   </script>
