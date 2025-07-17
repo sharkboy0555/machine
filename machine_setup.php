@@ -89,23 +89,21 @@ $(function() {
   });
 
   // Manual preview: draw text on canvas and fire overlay hook
-  $('#previewBtn').click(function() {
-    var name = $('#modelSel').val();
-    var canvas = document.getElementById('previewCanvas');
-    var ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = $('#color').val();
-    ctx.font = '12px sans-serif';
-    var y = 14;
-    ['line1','line2','line3','line4'].forEach(function(id) {
-      ctx.fillText($('#' + id).val() || '', 0, y);
-      y += 14;
-    });
-    // Trigger your PHP overlay(), passing model & preview flag
-    $.get('/plugin/machine/overlay?preview=1&model=' +
-      encodeURIComponent(name)
-    );
+ $('#previewBtn').on('click', function() {
+  const model = $('#modelSel').val() || '';
+  const params = {
+    preview: 1,
+    model:   model,
+    color:   $('#color').val() || '#FFFFFF'
+  };
+  ['line1','line2','line3','line4'].forEach(id => {
+    params[id] = $('#' + id).val() || '';
   });
+  // build URL like /plugin/machine/overlay?preview=1&model=Main&line1=foo&line2=bar...
+  const url = '/plugin/machine/overlay?' + $.param(params);
+  $.get(url);
+});
+
 
   // Wire up model change event & initial info update
   $('#modelSel').change(function() {
