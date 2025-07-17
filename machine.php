@@ -1,65 +1,34 @@
 <?php
-// machine.php — core plugin for “machine”
-
 class MachinePlugin extends FPPPlugin {
     public function __construct() {
         parent::__construct();
-
-        // plugin “machine”
         $this->name = 'machine';
-
-        // hook to serve settings.json
-        $this->addHook('settings');
-
-        // hook to render overlay
+        // no more settings hook
         $this->addHook('overlay');
-
-        // status‐menu → machine_setup.php
         $this->addMenuEntry('Machine Config','status','machine_setup.php',1);
     }
 
-    /**
-     * settings() will auto‐read/write settings.json in plugin root.
-     */
-    public function settings() {
-        return $this->settingsPage();
-    }
-
-    /**
-     * overlay() is invoked on:
-     *  - GET /plugin/machine/overlay?preview=1&model=Foo
-     *  - (and whenever FPP reloads your persistent overlay)
-     */
     public function overlay($args) {
-        // load your saved lines & color
-        $settings = $this->getSettings();
+        // take line1–4 and color out of $args, with fallbacks
+        $fields = ['line1','line2','line3','line4'];
+        $color  = $args['color'] ?? '#FFFFFF';
+        $model  = $args['model'] ?? '';
 
-        // model name passed from the UI
-        $model = $args['model'] ?? '';
-
-        // clear whatever overlay is active (if model provided, clear that one)
+        // clear that overlay (or all if none given)
         if ($model) {
             $this->clearOverlay($model);
         } else {
             $this->clearOverlay();
         }
 
-        // draw each line in sequence
+        // draw each line
         $y = 0;
-        foreach (['line1','line2','line3','line4'] as $field) {
-            $text  = $settings[$field] ?? '';
-            $color = $settings['color'] ?? '#FFFFFF';
-
-            // drawText($text, $font, $x, $y, $color)
-            // Note: clearOverlay($model) directed subsequent drawText into that model
+        foreach ($fields as $f) {
+            $text = $args[$f] ?? '';
             $this->drawText($text, 'fixed', 0, $y, $color);
-
-            // move down 14 pixels (matches your JS preview font)
             $y += 14;
         }
     }
 }
-
-// instantiate
 new MachinePlugin();
 ?>
